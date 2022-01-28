@@ -1,5 +1,7 @@
 import sqlite3
 from create_bot import bot
+from admins import admins
+
 
 
 def sql_start():
@@ -9,9 +11,16 @@ def sql_start():
     if base:
         print("Data base connected OK!")
     base.execute("CREATE TABLE IF NOT EXISTS menu(img, name, description, price)")
-    base.execute("CREATE TABLE IF NOT EXISTS admins(telegram_id, activate)")
+    base.execute("CREATE TABLE IF NOT EXISTS admins(telegram_id PRIMARY KEY, activate)")
+    cur.execute(f"INSERT OR IGNORE INTO admins(?,?), {admins}")
+    cur.execute(f"UPDATE my_table SET age = 34 WHERE name='Karen'")
     base.commit()
 
+
+async def sql_add_command(state):
+    async with state.proxy() as data:
+        cur.execute("INSERT INTO menu VALUES (?,?,?,?)", tuple(data.values()))
+        base.commit()
 
 async def sql_add_command(state):
     async with state.proxy() as data:
