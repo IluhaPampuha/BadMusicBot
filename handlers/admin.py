@@ -2,10 +2,9 @@ from aiogram import types, Dispatcher
 from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters import Text
 from aiogram.dispatcher.filters.state import State, StatesGroup
-from create_bot import bot
-from data_base.sqlite_db import sql_add_command
-from keyboards import admin_kb
-ID = None
+
+from data_base.sqlite_db import sql_add_in_menu_command
+from global_settings import config
 
 
 class FSMAdmin(StatesGroup):
@@ -15,19 +14,15 @@ class FSMAdmin(StatesGroup):
     price = State()
 
 
-# Получаем ID текущего модератора
-async def make_changes_command(message: types.Message):
-    global ID
-    ID = message.from_user.id
-    await bot.send_message(message.from_user.id, "Добро пожаловать, Администратор", reply_markup=admin_kb.kb_admin)
-    await message.delete()
-
-
 # Старт админки
-async def admin_start(message: types.Message):
-    if message.from_user.id == ID:
+async def admin_start(callback: types.CallbackQuery):
+    if str(callback.from_user.id) in config.ADMINS:
         await FSMAdmin.photo.set()
-        await message.reply("Загрузи фото")
+        await callback.message.reply("Загрузи фото")
+        await callback.answer()
+    else:
+        await callback.message.answer("Вы не являетесь администратором!")
+        await callback.answer()
 
 
 # Отмена сосотяния
@@ -70,17 +65,15 @@ async def load_price(message: types.Message, state: FSMContext):
         except:
             await message.reply("Введите корректную стоимость")
             return load_price
-    await sql_add_command(state)
+    await sql_add_in_menu_command(state)
     await state.finish()
 
 
 def register_handler_admin(dp: Dispatcher):
-    dp.register_message_handler(make_changes_command)
-    dp.register_message_handler(admin_start, commands=["Загрузить"], state=None)
-    dp.register_message_handler(cancel_state, state="*", commands="Отмена")
+    dp.register_callback_query_handler(admin_start, text="download", state=None)
+    dp.register_message_handler(cancel_state, state="*", commands=["Отмена"])
     dp.register_message_handler(cancel_state, Text(equals="Отмена", ignore_case=True), state="*")
     dp.register_message_handler(load_photo, content_types=["photo"], state=FSMAdmin.photo)
     dp.register_message_handler(load_name, state=FSMAdmin.name)
     dp.register_message_handler(load_description, state=FSMAdmin.description)
     dp.register_message_handler(load_price, state=FSMAdmin.price)
-
