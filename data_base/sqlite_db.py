@@ -10,14 +10,14 @@ def sql_start():
     cur = base.cursor()
     if base:
         print("Data base connected OK!")
-    base.execute("CREATE TABLE IF NOT EXISTS menu(img, name, description, price)")
+    base.execute("CREATE TABLE IF NOT EXISTS menu(img, name, description, subcatalog, price)")
     base.execute("CREATE TABLE IF NOT EXISTS users(user_id PRIMARY KEY, name, address, phone_number)")
     base.commit()
 
 
 async def sql_add_in_menu_command(state):
     async with state.proxy() as data:
-        cur.execute("INSERT INTO menu VALUES (?,?,?,?)", tuple(data.values()))
+        cur.execute("INSERT INTO menu VALUES (?,?,?,?,?)", tuple(data.values()))
         base.commit()
 
 
@@ -27,16 +27,18 @@ async def sql_add_user_command(state):
         base.commit()
 
 
-async def sql_read(callback):
+async def sql_read_menu(callback, data):
     if str(callback.from_user.id) in config.ADMINS:
-        for photo, name, description, price in cur.execute("SELECT * FROM menu").fetchall():
-            await bot.send_photo(callback.from_user.id, photo, f"<b>{name}</b>\nОписание: {description}\nЦена: {price}",
+        for photo, name, description, subcatalog, price in cur.execute("SELECT * FROM menu WHERE subcatalog == ?",
+                                                                       (data,)).fetchall():
+            await bot.send_photo(callback.from_user.id, photo, f"<b>{name}</b>\nОписание: {description}\nСтоимость: {price} ₽",
                                  parse_mode="html", reply_markup=kb_admin)
     else:
-        for photo, name, description, price in cur.execute("SELECT * FROM menu").fetchall():
-            await bot.send_photo(callback.from_user.id, photo, f"<b>{name}</b>\nОписание: {description}\nЦена: {price}",
+        for photo, name, description, subcatalog, price in cur.execute("SELECT * FROM menu WHERE subcatalog == ?",
+                                                                       (data,)).fetchall():
+            await bot.send_photo(callback.from_user.id, photo, f"<b>{name}</b>\nОписание: {description}\nСтоимость: {price} ₽",
                                  parse_mode="html", reply_markup=kb_client)
-        await callback.answer()
+    await callback.answer()
 
 
 async def check_user(id):
@@ -50,8 +52,5 @@ async def check_user(id):
         return True
 
 
-async def sql_read_admin(message):
-    for photo, name, description, price in cur.execute("SELECT * FROM menu").fetchall():
-        await bot.send_photo(message.from_user.id, photo, f"<b>{name}</b>\nОписание: {description}\nЦена: {price}",
-                             parse_mode="html")
-        await message.delete()
+async def delete_product_from_database(name):
+    cur.execute("DELETE FROM menu WHERE name == ?", (name,)).fetchall()
